@@ -18,9 +18,9 @@ import static com.company.project.core.ProjectConstant.*;
  */
 public class CodeGenerator {
     //JDBC配置，请修改为你项目的实际配置
-    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/test";
+    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/simple_fit?characterEncoding=utf8&useSSL=false";
     private static final String JDBC_USERNAME = "root";
-    private static final String JDBC_PASSWORD = "123456";
+    private static final String JDBC_PASSWORD = "czp";
     private static final String JDBC_DIVER_CLASS_NAME = "com.mysql.jdbc.Driver";
 
     private static final String PROJECT_PATH = System.getProperty("user.dir");//项目在硬盘上的基础路径
@@ -37,7 +37,7 @@ public class CodeGenerator {
     private static final String DATE = new SimpleDateFormat("yyyy/MM/dd").format(new Date());//@date
 
     public static void main(String[] args) {
-        genCode("输入表名");
+        genCode(new String[] {"info_user"});
         //genCodeByCustomModelName("输入表名","输入自定义Model名称");
     }
 
@@ -66,12 +66,14 @@ public class CodeGenerator {
 
 
     public static void genModelAndMapper(String tableName, String modelName) {
+        /* 初始化代码生成器的上下文环境 */
         Context context = new Context(ModelType.FLAT);
         context.setId("Potato");
         context.setTargetRuntime("MyBatis3Simple");
         context.addProperty(PropertyRegistry.CONTEXT_BEGINNING_DELIMITER, "`");
         context.addProperty(PropertyRegistry.CONTEXT_ENDING_DELIMITER, "`");
 
+        /* JDBC 的配置 */
         JDBCConnectionConfiguration jdbcConnectionConfiguration = new JDBCConnectionConfiguration();
         jdbcConnectionConfiguration.setConnectionURL(JDBC_URL);
         jdbcConnectionConfiguration.setUserId(JDBC_USERNAME);
@@ -84,28 +86,33 @@ public class CodeGenerator {
         pluginConfiguration.addProperty("mappers", MAPPER_INTERFACE_REFERENCE);
         context.addPluginConfiguration(pluginConfiguration);
 
+        /* 生成 entity 类 */
         JavaModelGeneratorConfiguration javaModelGeneratorConfiguration = new JavaModelGeneratorConfiguration();
         javaModelGeneratorConfiguration.setTargetProject(PROJECT_PATH + JAVA_PATH);
         javaModelGeneratorConfiguration.setTargetPackage(MODEL_PACKAGE);
         context.setJavaModelGeneratorConfiguration(javaModelGeneratorConfiguration);
 
+        /* 生成 xml 文件 */
         SqlMapGeneratorConfiguration sqlMapGeneratorConfiguration = new SqlMapGeneratorConfiguration();
         sqlMapGeneratorConfiguration.setTargetProject(PROJECT_PATH + RESOURCES_PATH);
         sqlMapGeneratorConfiguration.setTargetPackage("mapper");
         context.setSqlMapGeneratorConfiguration(sqlMapGeneratorConfiguration);
 
+        /* 生成 mapper 接口 */
         JavaClientGeneratorConfiguration javaClientGeneratorConfiguration = new JavaClientGeneratorConfiguration();
         javaClientGeneratorConfiguration.setTargetProject(PROJECT_PATH + JAVA_PATH);
         javaClientGeneratorConfiguration.setTargetPackage(MAPPER_PACKAGE);
         javaClientGeneratorConfiguration.setConfigurationType("XMLMAPPER");
         context.setJavaClientGeneratorConfiguration(javaClientGeneratorConfiguration);
 
+        /* 设置需要生成代码的表名称 */
         TableConfiguration tableConfiguration = new TableConfiguration(context);
         tableConfiguration.setTableName(tableName);
         if (StringUtils.isNotEmpty(modelName))tableConfiguration.setDomainObjectName(modelName);
         tableConfiguration.setGeneratedKey(new GeneratedKey("id", "Mysql", true, null));
         context.addTableConfiguration(tableConfiguration);
 
+        /* 生成代码 */
         List<String> warnings;
         MyBatisGenerator generator;
         try {
@@ -116,7 +123,9 @@ public class CodeGenerator {
             boolean overwrite = true;
             DefaultShellCallback callback = new DefaultShellCallback(overwrite);
             warnings = new ArrayList<String>();
+            // 创建MBG
             generator = new MyBatisGenerator(config, callback, warnings);
+            // 执行生成代码
             generator.generate(null);
         } catch (Exception e) {
             throw new RuntimeException("生成Model和Mapper失败", e);
